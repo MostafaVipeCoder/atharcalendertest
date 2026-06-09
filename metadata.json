@@ -1,0 +1,6 @@
+{
+  "name": "Company Shared Calendar",
+  "description": "A Google Calendar-style corporate calendar optimized for teams, featuring Gantt chart generation, smart notifications, custom permissions, a real-time admin monitoring dashboard, in Arabic with full mobile responsive design.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

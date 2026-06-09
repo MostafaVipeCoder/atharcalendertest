@@ -1,0 +1,118 @@
+@import url('https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Cairo", "Inter", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+:root {
+  --bg: #ffffff;
+  --surface: #fbfafe;
+  --border: #e0e2e0;
+  --accent: #0b57d0;
+  --text-main: #1f1f1f;
+  --text-muted: #5f6368;
+  
+  --task-blue: #0b57d0;
+  --task-green: #137333;
+  --task-orange: #b06000;
+  
+  --gcal-bg: #ffffff;
+  --gcal-sidebar: #ffffff;
+  --gcal-border: #e0e2e0;
+  --gcal-text-main: #3c4043;
+  --gcal-text-muted: #70757a;
+  --gcal-hover: #f1f3f4;
+}
+
+.dark {
+  --bg: #131314;
+  --surface: #1e1f20;
+  --border: #2d2f31;
+  --accent: #a8c7fa;
+  --text-main: #e3e3e3;
+  --text-muted: #c4c7c5;
+  
+  --task-blue: #8ab4f8;
+  --task-green: #81c995;
+  --task-orange: #fdd663;
+  
+  --gcal-bg: #131314;
+  --gcal-sidebar: #131314;
+  --gcal-border: #2d2f31;
+  --gcal-text-main: #e3e3e3;
+  --gcal-text-muted: #c4c7c5;
+  --gcal-hover: #2d2f31;
+}
+
+/* Custom scrollbars for clean calendar grids */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(156, 163, 175, 0.2);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(156, 163, 175, 0.4);
+}
+
+/* Base resets & Arabic RTL support */
+body {
+  font-family: "Cairo", "Inter", sans-serif;
+  direction: rtl; /* Force RTL language support */
+  background-color: var(--bg);
+  color: var(--text-main);
+  transition: background-color 0.15s ease, color 0.15s ease;
+  overflow: hidden; /* Lock viewport for a desktop application feel */
+}
+
+/* Google Calendar Specific Styles */
+.gcal-btn {
+  @apply flex items-center justify-center gap-2 px-4 py-2 rounded-full font-medium text-sm transition-all duration-150;
+}
+
+.gcal-btn-primary {
+  @apply bg-[#0b57d0] hover:bg-[#0842a0] text-white dark:bg-[#a8c7fa] dark:hover:bg-[#c2dbff] dark:text-[#062e70];
+}
+
+.gcal-btn-outline {
+  @apply border border-[#8e918f] dark:border-[#3c4043] hover:bg-slate-100 dark:hover:bg-[#2d2f31] text-[#1f1f1f] dark:text-[#e3e3e3];
+}
+
+.gcal-btn-icon {
+  @apply p-2 rounded-full hover:bg-slate-100 dark:hover:bg-[#2d2f31] text-[#5f6368] dark:text-[#c4c7c5] transition-colors duration-150;
+}
+
+/* Apply CSS Variables to standard UI elements for dynamic styling consistency */
+.bg-theme-bg {
+  background-color: var(--bg);
+}
+.bg-theme-surface {
+  background-color: var(--surface);
+}
+.border-theme-border {
+  border-color: var(--border);
+}
+.text-theme-muted_custom {
+  color: var(--text-muted);
+}
+.text-theme-main {
+  color: var(--text-main);
+}
+.text-theme-accent {
+  color: var(--accent);
+}
+.bg-theme-accent {
+  background-color: var(--accent);
+}
+
+
