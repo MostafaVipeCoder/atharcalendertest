@@ -423,17 +423,17 @@ export default function App() {
     return (
       <div className="text-center font-sans">
         <div className="flex items-center justify-between mb-2 px-1">
-          <span className="text-sm font-semibold text-[#e3e3e3]">{months[month]} {year}</span>
+          <span className="text-sm font-semibold text-[#1f1f1f] dark:text-[#e3e3e3]">{months[month]} {year}</span>
           <div className="flex gap-1">
-            <button onClick={handlePrev} className="p-1 hover:bg-[#2d2f31] rounded-full text-[#c4c7c5]">
+            <button onClick={handlePrev} className="p-1 hover:bg-slate-100 dark:hover:bg-[#2d2f31] rounded-full text-[#5f6368] dark:text-[#c4c7c5]">
               <ChevronLeft className="w-3.5 h-3.5" />
             </button>
-            <button onClick={handleNext} className="p-1 hover:bg-[#2d2f31] rounded-full text-[#c4c7c5]">
+            <button onClick={handleNext} className="p-1 hover:bg-slate-100 dark:hover:bg-[#2d2f31] rounded-full text-[#5f6368] dark:text-[#c4c7c5]">
               <ChevronRight className="w-3.5 h-3.5" />
             </button>
           </div>
         </div>
-        <div className="grid grid-cols-7 text-[11px] text-[#c4c7c5] font-semibold mb-1">
+        <div className="grid grid-cols-7 text-[11px] text-[#5f6368] dark:text-[#c4c7c5] font-semibold mb-1">
           {daysOfWeek.map((d, i) => <div key={i}>{d}</div>)}
         </div>
         <div className="grid grid-cols-7 gap-y-1 text-xs">
@@ -446,12 +446,12 @@ export default function App() {
                 onClick={() => setCurrentDate(new Date(cell.y, cell.m, cell.d, 12, 0, 0))}
                 className={`w-6 h-6 mx-auto flex items-center justify-center rounded-full transition-colors ${
                   isToday
-                    ? "bg-[#8ab4f8] text-black font-bold"
+                    ? "bg-[#0b57d0] dark:bg-[#8ab4f8] text-white dark:text-black font-bold"
                     : isSelected
-                    ? "bg-[#8ab4f8]/25 text-[#8ab4f8] font-bold"
+                    ? "bg-[#0b57d0]/25 dark:bg-[#8ab4f8]/25 text-[#0b57d0] dark:text-[#8ab4f8] font-bold"
                     : cell.current
-                    ? "text-[#e3e3e3] hover:bg-[#2d2f31]"
-                    : "text-[#5f6368]"
+                    ? "text-[#1f1f1f] dark:text-[#e3e3e3] hover:bg-slate-100 dark:hover:bg-[#2d2f31]"
+                    : "text-[#5f6368] dark:text-[#5f6368]"
                 }`}
               >
                 {cell.d}
@@ -464,12 +464,12 @@ export default function App() {
   };
 
   return (
-    <div className={`h-screen flex flex-col font-sans bg-[#131314] text-[#e3e3e3] transition-colors duration-250 ${darkMode ? "dark" : ""}`} dir="ltr">
+    <div className={`h-screen flex flex-col font-sans bg-white text-[#1f1f1f] dark:bg-[#131314] dark:text-[#e3e3e3] transition-colors duration-250 ${darkMode ? "dark" : ""}`} dir="ltr">
       {/* Top Google Calendar Navigation Header */}
-      <header className="h-16 border-b border-[#2d2f31] bg-[#131314] px-3 flex items-center justify-between select-none">
+      <header className="h-16 border-b border-[#e0e2e0] dark:border-[#2d2f31] bg-white dark:bg-[#131314] px-3 flex items-center justify-between select-none">
         {/* Left corner: Logo and Navigation controls */}
         <div className="flex items-center gap-2">
-          <button className="p-2 rounded-full hover:bg-[#2d2f31] text-[#c4c7c5]">
+          <button className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-[#2d2f31] text-[#5f6368] dark:text-[#c4c7c5]">
             <Menu className="w-5 h-5" />
           </button>
           
@@ -500,7 +500,7 @@ export default function App() {
           </div>
 
           {/* Current Date Display */}
-          <span className="text-xl font-medium text-white ml-4">
+          <span className="text-xl font-medium text-[#1f1f1f] dark:text-white ml-4">
             {currentDate.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
           </span>
         </div>
@@ -509,11 +509,11 @@ export default function App() {
         <div className="flex items-center gap-2">
           {/* Action icons */}
           <div className="relative group">
-            <Search className="w-5 h-5 absolute left-3 top-2.5 text-[#c4c7c5]" />
+            <Search className="w-5 h-5 absolute left-3 top-2.5 text-[#5f6368] dark:text-[#c4c7c5]" />
             <input
               type="text"
               placeholder="Search events..."
-              className="bg-[#1e1f20] border border-[#3c4043] rounded-full pl-10 pr-4 py-1.5 text-sm text-[#e3e3e3] outline-none focus:border-[#8ab4f8] focus:bg-[#131314] transition-all w-40 focus:w-64"
+              className="bg-slate-50 dark:bg-[#1e1f20] border border-[#dadce0] dark:border-[#3c4043] rounded-full pl-10 pr-4 py-1.5 text-sm text-[#1f1f1f] dark:text-[#e3e3e3] outline-none focus:border-[#0b57d0] dark:focus:border-[#8ab4f8] focus:bg-white dark:focus:bg-[#131314] transition-all w-40 focus:w-64"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -533,7 +533,7 @@ export default function App() {
             <select
               value={viewMode}
               onChange={(e) => setViewMode(e.target.value as any)}
-              className="bg-[#131314] border border-[#3c4043] rounded-md px-3.5 py-1.5 text-sm text-[#e3e3e3] outline-none cursor-pointer hover:bg-[#2d2f31] font-semibold pr-8"
+              className="bg-white dark:bg-[#131314] border border-[#dadce0] dark:border-[#3c4043] rounded-md px-3.5 py-1.5 text-sm text-[#1f1f1f] dark:text-[#e3e3e3] outline-none cursor-pointer hover:bg-slate-100 dark:hover:bg-[#2d2f31] font-semibold pr-8"
               style={{ appearance: "none" }}
             >
               <option value="month">Month</option>
@@ -541,7 +541,7 @@ export default function App() {
               <option value="day">Day</option>
               <option value="dashboard">Dashboard 📊</option>
             </select>
-            <ChevronDown className="w-4 h-4 text-[#c4c7c5] absolute right-2.5 top-2.5 pointer-events-none" />
+            <ChevronDown className="w-4 h-4 text-[#5f6368] dark:text-[#c4c7c5] absolute right-2.5 top-2.5 pointer-events-none" />
         </div>
 
       </div>
@@ -551,25 +551,25 @@ export default function App() {
       <div className="flex-1 flex overflow-hidden">
         
         {/* LEFT SIDEBAR (Mock Create button, Mini calendar, checklist overlays, tools) */}
-        <aside className="w-64 border-r border-[#2d2f31] flex flex-col p-4 gap-4 overflow-y-auto shrink-0 bg-[#131314]">
+        <aside className="w-64 border-r border-[#e0e2e0] dark:border-[#2d2f31] flex flex-col p-4 gap-4 overflow-y-auto shrink-0 bg-white dark:bg-[#131314]">
           {/* Create Floating Action Button */}
           <div className="flex flex-col gap-2 mb-2">
             <button
               onClick={() => setShowAddModal(true)}
-              className="flex items-center gap-3 px-6 py-4 bg-[#1e1f20] hover:bg-[#2d2f31] text-white rounded-2xl shadow-md border border-[#3c4043] transition-colors self-start ml-2 font-medium w-full"
+              className="flex items-center gap-3 px-6 py-4 bg-slate-50 dark:bg-[#1e1f20] hover:bg-slate-100 dark:hover:bg-[#2d2f31] text-[#1f1f1f] dark:text-white rounded-2xl shadow-md border border-[#dadce0] dark:border-[#3c4043] transition-colors self-start ml-2 font-medium w-full"
             >
-              <Plus className="w-5 h-5 text-[#8ab4f8]" />
+              <Plus className="w-5 h-5 text-[#0b57d0] dark:text-[#8ab4f8]" />
               <span>Create</span>
-              <ChevronDown className="w-4 h-4 text-[#c4c7c5] ml-auto" />
+              <ChevronDown className="w-4 h-4 text-[#5f6368] dark:text-[#c4c7c5] ml-auto" />
             </button>
 
             {/* Sync Button */}
             <button
               onClick={handleManualSync}
               disabled={isSyncing}
-              className={`flex items-center gap-3 px-6 py-3 bg-[#1e1f20] hover:bg-[#2d2f31] text-white rounded-2xl shadow-md border border-[#3c4043] transition-colors self-start ml-2 font-medium w-full ${isSyncing ? "opacity-50 cursor-not-allowed" : ""}`}
+              className={`flex items-center gap-3 px-6 py-3 bg-slate-50 dark:bg-[#1e1f20] hover:bg-slate-100 dark:hover:bg-[#2d2f31] text-[#1f1f1f] dark:text-white rounded-2xl shadow-md border border-[#dadce0] dark:border-[#3c4043] transition-colors self-start ml-2 font-medium w-full ${isSyncing ? "opacity-50 cursor-not-allowed" : ""}`}
             >
-              <RefreshCw className={`w-4 h-4 text-emerald-400 ${isSyncing ? "animate-spin" : ""}`} />
+              <RefreshCw className={`w-4 h-4 text-emerald-600 dark:text-emerald-400 ${isSyncing ? "animate-spin" : ""}`} />
               <span className="text-sm">تزامن مع الشيت</span>
             </button>
 
@@ -593,34 +593,34 @@ export default function App() {
 
           {/* Search box (Now integrated with top search) */}
           <div className="relative mb-2">
-            <Search className="w-4 h-4 absolute left-3 top-2.5 text-[#c4c7c5]" />
+            <Search className="w-4 h-4 absolute left-3 top-2.5 text-[#5f6368] dark:text-[#c4c7c5]" />
             <input
               type="text"
               placeholder="Search projects..."
-              className="w-full pl-9 pr-3 py-2 text-xs bg-[#1e1f20] border border-[#2d2f31] rounded-md text-[#e3e3e3] focus:outline-none focus:border-[#8ab4f8]"
+              className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 dark:bg-[#1e1f20] border border-[#dadce0] dark:border-[#2d2f31] rounded-md text-[#1f1f1f] dark:text-[#e3e3e3] focus:outline-none focus:border-[#0b57d0] dark:focus:border-[#8ab4f8]"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
           </div>
 
           {/* My Calendars checklist -> Projects */}
-          <div className="space-y-2 border-b border-[#2d2f31] pb-4">
+          <div className="space-y-2 border-b border-[#dadce0] dark:border-[#2d2f31] pb-4">
             <div className="flex items-center justify-between px-1">
-              <span className="text-[11px] font-semibold text-[#c4c7c5] uppercase tracking-wider block">Projects</span>
+              <span className="text-[11px] font-semibold text-[#5f6368] dark:text-[#c4c7c5] uppercase tracking-wider block">Projects</span>
               <button 
                 onClick={() => setIsAddingProject(!isAddingProject)}
-                className="p-1 hover:bg-[#2d2f31] rounded-full text-[#8ab4f8]"
+                className="p-1 hover:bg-slate-100 dark:hover:bg-[#2d2f31] rounded-full text-[#0b57d0] dark:text-[#8ab4f8]"
               >
                 <Plus className="w-3.5 h-3.5" />
               </button>
             </div>
 
             {isAddingProject && (
-              <div className="px-1 py-2 space-y-2 bg-[#1e1f20] rounded-lg border border-[#2d2f31] mb-2">
+              <div className="px-1 py-2 space-y-2 bg-slate-50 dark:bg-[#1e1f20] rounded-lg border border-[#dadce0] dark:border-[#2d2f31] mb-2">
                 <input
                   type="text"
                   placeholder="Project name"
-                  className="w-full px-2 py-1.5 text-[11px] bg-[#131314] border border-[#3c4043] rounded focus:outline-none focus:border-[#8ab4f8] text-white"
+                  className="w-full px-2 py-1.5 text-[11px] bg-white dark:bg-[#131314] border border-[#dadce0] dark:border-[#3c4043] rounded focus:outline-none focus:border-[#0b57d0] dark:focus:border-[#8ab4f8] text-[#1f1f1f] dark:text-white"
                   value={newProjectName}
                   onChange={(e) => setNewProjectName(e.target.value)}
                 />
@@ -633,7 +633,7 @@ export default function App() {
                   />
                   <button
                     onClick={handleAddProject}
-                    className="flex-1 py-1 bg-[#0b57d0] text-white text-[10px] font-bold rounded"
+                    className="flex-1 py-1 bg-[#0b57d0] dark:bg-[#8ab4f8] text-white dark:text-[#062e70] text-[10px] font-bold rounded"
                   >
                     Add Project
                   </button>
@@ -645,20 +645,20 @@ export default function App() {
               {projects.map((proj) => {
                 const isChecked = selectedProjectNames.includes(proj.name);
                 return (
-                  <div key={proj.id} className="group flex items-center justify-between px-2 py-1.5 rounded hover:bg-[#2d2f31] cursor-pointer">
+                  <div key={proj.id} className="group flex items-center justify-between px-2 py-1.5 rounded hover:bg-slate-100 dark:hover:bg-[#2d2f31] cursor-pointer">
                     <label className="flex items-center gap-3 flex-1 cursor-pointer">
                       <input
                         type="checkbox"
                         checked={isChecked}
                         onChange={() => toggleProjectFilter(proj.name)}
-                        className="w-4 h-4 rounded text-[#8ab4f8] bg-[#1e1f20] border-[#3c4043] focus:ring-0 cursor-pointer"
+                        className="w-4 h-4 rounded text-[#0b57d0] dark:text-[#8ab4f8] bg-slate-50 dark:bg-[#1e1f20] border-[#dadce0] dark:border-[#3c4043] focus:ring-0 cursor-pointer"
                       />
                       <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: proj.color }} />
-                      <span className="text-xs text-[#e3e3e3] truncate">{proj.name}</span>
+                      <span className="text-xs text-[#1f1f1f] dark:text-[#e3e3e3] truncate">{proj.name}</span>
                     </label>
                     <button 
                       onClick={() => handleDeleteProject(proj.id, proj.name)}
-                      className="opacity-0 group-hover:opacity-100 p-1 text-rose-400 hover:bg-rose-900/20 rounded transition-all"
+                      className="opacity-0 group-hover:opacity-100 p-1 text-rose-500 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/20 rounded transition-all"
                     >
                       <Trash2 className="w-3 h-3" />
                     </button>
@@ -670,10 +670,10 @@ export default function App() {
 
           {/* New Project List Section (Static Display) */}
           <div className="space-y-3 pt-2">
-            <span className="text-[11px] font-semibold text-[#c4c7c5] uppercase tracking-wider block px-1">Project Names List</span>
+            <span className="text-[11px] font-semibold text-[#5f6368] dark:text-[#c4c7c5] uppercase tracking-wider block px-1">Project Names List</span>
             <div className="space-y-1 px-2">
               {projects.map((proj) => (
-                <div key={proj.id} className="flex items-center gap-2 text-xs text-[#e3e3e3] py-1 border-b border-[#2d2f31]/30 last:border-0">
+                <div key={proj.id} className="flex items-center gap-2 text-xs text-[#1f1f1f] dark:text-[#e3e3e3] py-1 border-b border-[#dadce0]/30 dark:border-[#2d2f31]/30 last:border-0">
                   <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: proj.color }} />
                   <span className="truncate">{proj.name}</span>
                 </div>
@@ -686,7 +686,7 @@ export default function App() {
         </aside>
 
         {/* Calendar / Dashboard grid pane */}
-        <main className="flex-1 flex flex-col overflow-hidden bg-[#131314]">
+        <main className="flex-1 flex flex-col overflow-hidden bg-white dark:bg-[#131314]">
           {viewMode === "dashboard" ? (
             <div className="flex-1 overflow-y-auto p-6" dir="rtl">
               <AdminDashboard
