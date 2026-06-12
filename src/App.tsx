@@ -38,7 +38,7 @@ export default function App() {
   }, [projects]);
 
   // Calendar dates navigation state
-  const [currentDate, setCurrentDate] = useState<Date>(new Date("2026-06-08T12:00:00")); // Lock at preset timeline
+  const [currentDate, setCurrentDate] = useState<Date>(new Date()); // Default to actual today
   const [viewMode, setViewMode] = useState<"month" | "week" | "day" | "dashboard">("month"); // Default to month view
 
   // Add Event Modal State
@@ -97,40 +97,62 @@ export default function App() {
       console.error("Error fetching project schedules:", schedError);
     } else if (schedData) {
       console.log("Schedules fetched:", schedData.length);
+      // Create a map for project colors
+      const projectColorMap = new Map();
+      if (projData) {
+        projData.forEach(proj => projectColorMap.set(proj.name, proj.color));
+      }
+      
       const formattedEvents: CalendarEvent[] = schedData.map((item: any) => ({
         id: item.id,
-        title: item.activity,
-        description: `Project: ${item.project} - Category: ${item.category}`,
-        startDate: item.start_date ? item.start_date.substring(0, 16).replace(' ', 'T') : "2026-06-08T09:00",
-        endDate: item.end_date ? item.end_date.substring(0, 16).replace(' ', 'T') : "2026-06-08T11:00",
-        status: "in_progress",
-        priority: "medium",
-        category: item.category,
-        project: item.project,
-        color: item.color
+        project: item.project || "Default",
+        category: item.category || "General",
+        activity: item.activity || "Untitled",
+        startDate: item.start_date || new Date().toISOString().substring(0, 10),
+        endDate: item.end_date || new Date().toISOString().substring(0, 10),
+        startTime: item.start_time || "09:00",
+        endTime: item.end_time || "10:00",
+        type: item.event_type || "timed", 
+        status: item.status || "in_progress",
+        priority: item.priority || "medium",
+        description: item.description || `Project: ${item.project} - Category: ${item.category}`,
+        color: projectColorMap.get(item.project) || item.color || "#8ab4f8",
+        title: item.activity || "Untitled"
       }));
 
       setEvents(formattedEvents);
     }
   };
 
+  // Real-time subscription to database changes
+  useEffect(() => {
+    if (!supabase) return;
+
+    const channel = supabase
+      .channel('realtime-sync')
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'project_schedules' },
+        () => {
+          console.log("Project schedules changed, refreshing...");
+          fetchData();
+        }
+      )
+      .on('postgres_changes', 
+        { event: '*', schema: 'public', table: 'projects' },
+        () => {
+          console.log("Projects changed, refreshing...");
+          fetchData();
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [supabase]);
+
   useEffect(() => {
     fetchData();
-  }, []);
-
-  // Automatic hourly sync
-  useEffect(() => {
-    const hourlySync = async () => {
-      console.log("Running scheduled hourly sync...");
-      const result = await syncWithGoogleSheets("auto");
-      if (result.updated) {
-        fetchData();
-      }
-    };
-
-    // Run every hour
-    const interval = setInterval(hourlySync, 60 * 60 * 1000);
-    return () => clearInterval(interval);
   }, []);
 
   const handleManualSync = async () => {
@@ -138,7 +160,7 @@ export default function App() {
     setSyncStatus({ message: "جاري المزامنة مع الجدول...", type: "info" });
     
     try {
-      const result = await syncWithGoogleSheets("manual");
+      const result = await syncWithGoogleSheets(supabase, "manual");
       if (result.error) {
         setSyncStatus({ message: result.message, type: "error" });
       } else {
@@ -203,12 +225,18 @@ export default function App() {
         .from('project_schedules')
         .insert([{
           id: newEvt.id.startsWith('evt-') ? undefined : newEvt.id, 
-          activity: newEvt.title,
+          activity: newEvt.activity,
           category: newEvt.category,
           project: newEvt.project,
           start_date: newEvt.startDate,
           end_date: newEvt.endDate,
-          color: newEvt.color
+          start_time: newEvt.startTime,
+          end_time: newEvt.endTime,
+          event_type: newEvt.type,
+          status: newEvt.status,
+          priority: newEvt.priority,
+          color: newEvt.color,
+          description: newEvt.description
         }]);
 
       if (error) console.error("Error adding event to Supabase:", error);
@@ -222,12 +250,18 @@ export default function App() {
       const { error } = await supabase
         .from('project_schedules')
         .update({
-          activity: updated.title,
+          activity: updated.activity,
           category: updated.category,
           project: updated.project,
           start_date: updated.startDate,
           end_date: updated.endDate,
-          color: updated.color
+          start_time: updated.startTime,
+          end_time: updated.endTime,
+          event_type: updated.type,
+          status: updated.status,
+          priority: updated.priority,
+          color: updated.color,
+          description: updated.description
         })
         .eq('id', updated.id);
 
@@ -317,21 +351,79 @@ export default function App() {
     setCurrentDate(prev);
   };
 
-  // Mini Calendar rendering (shows June 2026 by default)
+  // Mini Calendar rendering (dynamic)
   const renderMiniCalendar = () => {
     const daysOfWeek = ["S", "M", "T", "W", "T", "F", "S"];
+    const months = ["January", "February", "March", "April", "May", "June", "July", "August", "September", "October", "November", "December"];
     
-    // Aligned June 2026 coordinates
-    const cells = [
-      { d: 31, m: 4, y: 2026, current: false }, // May
-      ...Array.from({ length: 30 }, (_, i) => ({ d: i + 1, m: 5, y: 2026, current: true })),
-      ...Array.from({ length: 11 }, (_, i) => ({ d: i + 1, m: 6, y: 2026, current: false }))
-    ];
+    const year = currentDate.getFullYear();
+    const month = currentDate.getMonth();
+    const today = new Date();
+    
+    // First day of the month
+    const firstDay = new Date(year, month, 1);
+    const firstDayWeekday = firstDay.getDay(); // 0 = Sunday
+    
+    // Last day of the month
+    const lastDay = new Date(year, month + 1, 0);
+    const daysInMonth = lastDay.getDate();
+    
+    // Last day of previous month
+    const lastDayPrevMonth = new Date(year, month, 0);
+    const daysInPrevMonth = lastDayPrevMonth.getDate();
+    
+    // Build cells array
+    const cells = [];
+    
+    // Previous month days
+    for (let i = firstDayWeekday - 1; i >= 0; i--) {
+      cells.push({
+        d: daysInPrevMonth - i,
+        m: month - 1,
+        y: year,
+        current: false
+      });
+    }
+    
+    // Current month days
+    for (let i = 1; i <= daysInMonth; i++) {
+      cells.push({
+        d: i,
+        m: month,
+        y: year,
+        current: true
+      });
+    }
+    
+    // Next month days to fill the grid (up to 42 total cells)
+    const remainingCells = 42 - cells.length;
+    for (let i = 1; i <= remainingCells; i++) {
+      cells.push({
+        d: i,
+        m: month + 1,
+        y: year,
+        current: false
+      });
+    }
+
+    // Check if a cell is today
+    const isTodayCell = (cell: any) => {
+      return cell.d === today.getDate() && 
+             cell.m === today.getMonth() && 
+             cell.y === today.getFullYear();
+    };
+    
+    // Check if a cell is selected
+    const isSelectedCell = (cell: any) => {
+      return cell.d === currentDate.getDate() && 
+             cell.m === currentDate.getMonth() && 
+             cell.y === currentDate.getFullYear();
+    };
 
     return (
       <div className="text-center font-sans">
         <div className="flex items-center justify-between mb-2 px-1">
-          <span className="text-sm font-semibold text-[#e3e3e3]">June 2026</span>
+          <span className="text-sm font-semibold text-[#e3e3e3]">{months[month]} {year}</span>
           <div className="flex gap-1">
             <button onClick={handlePrev} className="p-1 hover:bg-[#2d2f31] rounded-full text-[#c4c7c5]">
               <ChevronLeft className="w-3.5 h-3.5" />
@@ -345,9 +437,9 @@ export default function App() {
           {daysOfWeek.map((d, i) => <div key={i}>{d}</div>)}
         </div>
         <div className="grid grid-cols-7 gap-y-1 text-xs">
-          {cells.slice(0, 35).map((cell, idx) => {
-            const isToday = cell.d === 8 && cell.m === 5;
-            const isSelected = currentDate.getDate() === cell.d && currentDate.getMonth() === cell.m;
+          {cells.map((cell, idx) => {
+            const isToday = isTodayCell(cell);
+            const isSelected = isSelectedCell(cell);
             return (
               <button
                 key={idx}
@@ -391,7 +483,7 @@ export default function App() {
 
           {/* Today selector */}
           <button
-            onClick={() => setCurrentDate(new Date("2026-06-08T12:00:00"))}
+            onClick={() => setCurrentDate(new Date())}
             className="gcal-btn gcal-btn-outline ml-4"
           >
             Today
@@ -591,16 +683,6 @@ export default function App() {
               )}
             </div>
           </div>
-
-          {/* Reset App button */}
-          <div className="mt-auto pt-4 text-center">
-            <button
-              onClick={handleResetApp}
-              className="text-[10px] text-slate-500 hover:text-slate-400 underline font-medium"
-            >
-              Reset App Data
-            </button>
-          </div>
         </aside>
 
         {/* Calendar / Dashboard grid pane */}
@@ -637,26 +719,6 @@ export default function App() {
             />
           )}
         </main>
-
-        {/* Right Google Side Panel Utility Bar (Keep, Tasks, Contacts, etc.) */}
-        <aside className="w-12 border-l border-[#2d2f31] flex flex-col items-center py-4 gap-6 bg-[#131314] shrink-0 select-none">
-          <button className="p-2 rounded-full hover:bg-[#2d2f31] text-amber-400" title="Keep">
-            <div className="w-5 h-5 bg-amber-400 rounded-sm flex items-center justify-center text-[10px] text-black font-extrabold shadow-sm">K</div>
-          </button>
-          <button className="p-2 rounded-full hover:bg-[#2d2f31] text-blue-400" title="Tasks">
-            <CheckCircle2 className="w-5.5 h-5.5 text-blue-450" />
-          </button>
-          <button className="p-2 rounded-full hover:bg-[#2d2f31] text-[#8ab4f8]" title="Contacts">
-            <User className="w-5.5 h-5.5 text-[#8ab4f8]" />
-          </button>
-          <button className="p-2 rounded-full hover:bg-[#2d2f31] text-green-400" title="Maps">
-            <div className="w-5.5 h-5.5 bg-green-500 rounded-full flex items-center justify-center text-[8px] text-white font-extrabold">M</div>
-          </button>
-          <div className="w-6 h-px bg-[#2d2f31] my-2" />
-          <button className="p-2 rounded-full hover:bg-[#2d2f31] text-[#c4c7c5]" title="Add-ons">
-            <Plus className="w-5.5 h-5.5" />
-          </button>
-        </aside>
 
       </div>
     </div>

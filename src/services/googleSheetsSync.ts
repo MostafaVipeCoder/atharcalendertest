@@ -1,13 +1,13 @@
-/**
- * @license
- * SPDX-License-Identifier: Apache-2.0
- */
+import { SupabaseClient } from "@supabase/supabase-js";
 
-import { supabase } from "../supabaseClient";
+// Updated Sheet Link and Column Mapping
+// Sheet Name: sheet1
+// Columns: Project | Category | Activity / Sub-Activity | Start Date | End Date
+// Link: https://docs.google.com/spreadsheets/d/1VgA9yHKr9tA499rZ364jNHVqPdJWA6o9/edit?gid=1961861034#gid=1961861034
 
 const SHEET_ID = "1VgA9yHKr9tA499rZ364jNHVqPdJWA6o9";
-// Using the gviz endpoint which is more reliable for shared sheets
-const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv`;
+const GID = "1961861034"; // Correct GID from user link
+const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&gid=${GID}`;
 
 export interface SyncResult {
   updated: boolean;
@@ -16,90 +16,89 @@ export interface SyncResult {
   error?: string;
 }
 
-export async function syncWithGoogleSheets(type: "manual" | "auto" = "manual"): Promise<SyncResult> {
-  if (!supabase) {
+export async function syncWithGoogleSheets(client: SupabaseClient, type: "manual" | "auto" = "manual"): Promise<SyncResult> {
+  if (!client) {
     return { updated: false, changesCount: 0, message: "Supabase client not initialized", error: "No Supabase client" };
   }
 
   try {
     const response = await fetch(CSV_URL);
     if (!response.ok) {
-      if (response.status === 400 || response.status === 404) {
-        throw new Error("تأكد من أن جدول البيانات 'منشور على الويب' (File > Share > Publish to the web) وأنه بصيغة CSV.");
-      }
-      throw new Error(`Failed to fetch Google Sheet: ${response.statusText}`);
+      throw new Error("تأكد من أن جدول البيانات 'منشور على الويب' (File > Share > Publish to the web) وأنه بصيغة CSV.");
     }
 
     const csvData = await response.text();
-    // Check if the response is actually CSV or just HTML (which happens if it's not public)
     if (csvData.includes("<!DOCTYPE html>") || csvData.includes("<html")) {
       throw new Error("تأكد من أن جدول البيانات 'منشور على الويب' كـ CSV وليس مجرد رابط مشاركة.");
     }
 
     const rows = parseCSV(csvData);
-
-    if (rows.length === 0) {
-      return { updated: false, changesCount: 0, message: "تم التزامن ولا توجد تغييرات جديدة" };
+    if (rows.length <= 1) {
+      return { updated: false, changesCount: 0, message: "تم التزامن ولا توجد بيانات في الجدول" };
     }
 
-    // Expected columns: activity, category, project, start_date, end_date, color
-    // We'll assume the first row is header
+    // Expected columns from user: Project | Category | Activity / Sub-Activity | Start Date | End Date
     const dataRows = rows.slice(1);
     
-    // Fetch current data for comparison
-    const { data: currentSchedules } = await supabase.from("project_schedules").select("*");
-    const { data: currentProjects } = await supabase.from("projects").select("*");
-
-    const currentSchedulesMap = new Map(currentSchedules?.map(s => [s.activity + s.project + s.start_date, s]));
-    const currentProjectsMap = new Map(currentProjects?.map(p => [p.name, p]));
+    // Fetch current projects to sync project names
+    const { data: currentProjects } = await client.from("projects").select("name, color");
+    const existingProjectNames = new Set(currentProjects?.map(p => p.name) || []);
+    const projectColorMap = new Map(currentProjects?.map(p => [p.name, p.color]) || []);
 
     let changesCount = 0;
-    const newProjects = new Set<string>();
 
-    // 1. Process Projects first
     for (const row of dataRows) {
-      const projectName = row[2]; // project column
-      const projectColor = row[5] || "#8ab4f8"; // color column
-
-      if (projectName && !currentProjectsMap.has(projectName) && !newProjects.has(projectName)) {
-        newProjects.add(projectName);
-        const { error } = await supabase.from("projects").insert([{ name: projectName, color: projectColor }]);
-        if (!error) changesCount++;
-      }
-    }
-
-    // 2. Process Schedules
-    // For simplicity, we'll clear and re-insert or do a basic merge
-    // A more robust way is to compare each field, but for a demo, we'll do a simple "upsert" based on activity+project+start_date
-    for (const row of dataRows) {
-      const [activity, category, project, start_date, end_date, color] = row;
+      // Mapping based on user input:
+      // row[0] -> Project
+      // row[1] -> Category
+      // row[2] -> Activity / Sub-Activity
+      // row[3] -> Start Date
+      // row[4] -> End Date
       
-      if (!activity || !project || !start_date || !end_date) continue;
+      const [project, category, activity, startDate, endDate] = row;
 
-      const key = activity + project + start_date;
-      const existing = currentSchedulesMap.get(key);
+      if (!activity || !project || !startDate) continue;
 
-      if (!existing || existing.category !== category || existing.end_date !== end_date || existing.color !== color) {
-        const { error } = await supabase.from("project_schedules").upsert([{
-          activity,
-          category,
-          project,
-          start_date,
-          end_date,
-          color: color || "#8ab4f8"
-        }], { onConflict: 'activity,project,start_date' });
-        
+      // 1. Ensure project exists
+      if (project && !existingProjectNames.has(project)) {
+        await client.from("projects").insert([{ name: project, color: "#8ab4f8" }]);
+        existingProjectNames.add(project);
+        projectColorMap.set(project, "#8ab4f8");
+      }
+
+      const itemPayload = {
+        activity: activity,
+        project: project,
+        category: category || "General",
+        start_date: startDate,
+        end_date: endDate || startDate,
+        event_type: "all-day", // Default for sheet sync unless specified
+        status: "pending",
+        priority: "medium",
+        color: projectColorMap.get(project) || "#8ab4f8"
+      };
+
+      // 2. Check if existing schedule exists and update, else insert
+      const { data: existingItems } = await client
+        .from("project_schedules")
+        .select("id")
+        .eq("activity", activity)
+        .eq("project", project)
+        .eq("start_date", startDate);
+
+      if (existingItems && existingItems.length > 0) {
+        // Update existing item
+        const { error } = await client
+          .from("project_schedules")
+          .update(itemPayload)
+          .eq("id", existingItems[0].id);
+        if (!error) changesCount++;
+      } else {
+        // Insert new item
+        const { error } = await client.from("project_schedules").insert([itemPayload]);
         if (!error) changesCount++;
       }
     }
-
-    // Log the sync
-    await supabase.from("sync_logs").insert([{
-      sync_type: type,
-      changes_applied: changesCount,
-      status: "success",
-      details: { rowCount: dataRows.length }
-    }]);
 
     if (changesCount > 0) {
       return { updated: true, changesCount, message: "تم تحديث البيانات بنجاح" };
@@ -109,11 +108,6 @@ export async function syncWithGoogleSheets(type: "manual" | "auto" = "manual"): 
 
   } catch (error: any) {
     console.error("Sync Error:", error);
-    await supabase.from("sync_logs").insert([{
-      sync_type: type,
-      status: "error",
-      error_message: error.message
-    }]);
     return { updated: false, changesCount: 0, message: "فشل التزامن مع الجدول", error: error.message };
   }
 }
@@ -124,8 +118,6 @@ function parseCSV(text: string): string[][] {
   
   for (const line of lines) {
     if (!line.trim()) continue;
-    
-    // Basic CSV parser handling quoted values
     const row: string[] = [];
     let inQuotes = false;
     let currentValue = "";
@@ -144,6 +136,5 @@ function parseCSV(text: string): string[][] {
     row.push(currentValue.trim());
     rows.push(row);
   }
-  
   return rows;
 }

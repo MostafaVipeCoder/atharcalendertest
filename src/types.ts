@@ -14,17 +14,23 @@ export interface Project {
 export type EventStatus = "pending" | "in_progress" | "completed" | "delayed";
 export type EventPriority = "low" | "medium" | "high";
 
+export type EventType = "all-day" | "timed";
+
 export interface CalendarEvent {
   id: string;
-  title: string;
-  description: string;
-  startDate: string; // YYYY-MM-DDTHH:mm
-  endDate: string;   // YYYY-MM-DDTHH:mm
+  project: string;
+  category: string;
+  activity: string; // This will be the title
+  startDate: string; // YYYY-MM-DD
+  endDate: string;   // YYYY-MM-DD
+  startTime: string; // HH:mm
+  endTime: string;   // HH:mm
+  type: EventType;
   status: EventStatus;
   priority: EventPriority;
-  category: string;
-  project: string; // Project Name
+  description: string;
   color: string;
+  title: string; // For compatibility with existing code
 }
 
 export interface SmartNotification {
