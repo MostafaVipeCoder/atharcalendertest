@@ -5,7 +5,7 @@
 
 import React, { useState } from "react";
 import { ChevronLeft, ChevronRight, Plus, Trash2, Clock, Check, AlertCircle, CheckCircle2 } from "lucide-react";
-import { CalendarEvent, EventPriority, EventStatus, Project } from "../types";
+import { CalendarEvent, EventPriority, EventStatus, Project, EventType } from "../types";
 
 interface CalendarGridProps {
   events: CalendarEvent[];
@@ -49,15 +49,21 @@ export default function CalendarGrid({
   const [showDetailModal, setShowDetailModal] = useState(false);
   const [activeEvent, setActiveEvent] = useState<CalendarEvent | null>(null);
 
+
   // New Event Form State
-  const [newTitle, setNewTitle] = useState("");
-  const [newDesc, setNewDesc] = useState("");
-  const [newCategory, setNewCategory] = useState("إدارة");
-  const [newPriority, setNewPriority] = useState<EventPriority>("medium");
   const [newProject, setNewProject] = useState("");
+  const [newCategory, setNewCategory] = useState("إدارة");
+  const [newActivity, setNewActivity] = useState("");
+  const [newStartDate, setNewStartDate] = useState("2026-06-08");
+  const [newEndDate, setNewEndDate] = useState("2026-06-08");
+  const [newStartTime, setNewStartTime] = useState("09:00");
+  const [newEndTime, setNewEndTime] = useState("10:00");
+  const [newDesc, setNewDesc] = useState("");
+  const [newPriority, setNewPriority] = useState<EventPriority>("medium");
   const [newColor, setNewColor] = useState("#1d63bd");
-  const [newStartDate, setNewStartDate] = useState("2026-06-08T09:00");
-  const [newEndDate, setNewEndDate] = useState("2026-06-08T11:00");
+  const [newType, setNewType] = useState<EventType>("timed");
+  const [newAllDayStart, setNewAllDayStart] = useState("2026-06-08");
+  const [newAllDayEnd, setNewAllDayEnd] = useState("2026-06-08");
 
   const handleProjectChange = (projectName: string) => {
     setNewProject(projectName);
@@ -88,31 +94,41 @@ export default function CalendarGrid({
 
   const handleOpenAdd = (defaultTimeISO?: string) => {
     if (defaultTimeISO) {
-      setNewStartDate(defaultTimeISO);
       const parts = defaultTimeISO.split("T");
+      setNewStartDate(parts[0]);
+      setNewEndDate(parts[0]);
+      setNewStartTime(parts[1].substring(0, 5));
       const hr = parseInt(parts[1].split(":")[0]);
-      const nextHr = String((hr + 2) % 24).padStart(2, "0");
-      setNewEndDate(`${parts[0]}T${nextHr}:00`);
+      setNewEndTime(`${String((hr + 1) % 24).padStart(2, "0")}:00`);
+    } else {
+      setNewStartDate("2026-06-08");
+      setNewEndDate("2026-06-08");
+      setNewStartTime("09:00");
+      setNewEndTime("10:00");
     }
-    setNewTitle("");
+    setNewActivity("");
     setNewDesc("");
     setShowAddModal(true);
   };
 
   const submitNewEvent = () => {
-    if (!newTitle.trim() || !newProject) return;
+    if (!newActivity.trim() || !newProject) return;
 
     const newEvt: CalendarEvent = {
       id: `evt-${Date.now()}`,
-      title: newTitle,
-      description: newDesc,
-      startDate: newStartDate,
-      endDate: newEndDate,
+      project: newProject,
+      category: newCategory,
+      activity: newActivity,
+      startDate: newType === "all-day" ? newAllDayStart : newStartDate,
+      endDate: newType === "all-day" ? newAllDayEnd : newEndDate,
+      startTime: newType === "all-day" ? "00:00" : newStartTime,
+      endTime: newType === "all-day" ? "23:59" : newEndTime,
+      type: newType,
       status: "pending",
       priority: newPriority,
-      category: newCategory,
-      project: newProject,
-      color: newColor
+      description: newDesc,
+      color: newColor,
+      title: newActivity // Compatibility
     };
 
     onAddEvent(newEvt);
@@ -124,14 +140,7 @@ export default function CalendarGrid({
     setShowDetailModal(true);
   };
 
-  const updateActiveStatus = (status: EventStatus) => {
-    if (!activeEvent) return;
-    const updated = { ...activeEvent, status };
-    onUpdateEvent(updated);
-    setActiveEvent(updated);
-  };
-
-  const updateActiveSlotTime = (field: "startDate" | "endDate", value: string) => {
+  const updateActiveSlotTime = (field: "startDate" | "endDate" | "startTime" | "endTime", value: string) => {
     if (!activeEvent) return;
     const updated = { ...activeEvent, [field]: value };
     onUpdateEvent(updated);
@@ -144,6 +153,8 @@ export default function CalendarGrid({
     setShowDetailModal(false);
     setActiveEvent(null);
   };
+
+
 
   // Helper: Shift events quickly (simulated Drag & Drop)
   const executeMoveEvent = (evt: CalendarEvent, offsetDays: number) => {
@@ -262,11 +273,11 @@ export default function CalendarGrid({
   const getTimeLinePosition = () => {
     const hours = now.getHours();
     const minutes = now.getMinutes();
-    // Grid starts at 5 AM
-    if (hours < 5 || hours > 23) return null;
+    // Grid starts at 1 AM
+    if (hours < 1) return null;
     
-    const minutesFromStart = (hours - 5) * 60 + minutes;
-    const totalMinutes = (23 - 5 + 1) * 60;
+    const minutesFromStart = (hours - 1) * 60 + minutes;
+    const totalMinutes = 23 * 60; // 1 AM to Midnight
     return (minutesFromStart / totalMinutes) * 100;
   };
 
@@ -328,18 +339,18 @@ export default function CalendarGrid({
     const start = new Date(evt.startDate);
     const end = new Date(evt.endDate);
     
-    const gridStartMins = 5 * 60; // 5 AM
+    const gridStartMins = 1 * 60; // 1 AM
     const gridEndMins = 24 * 60;  // Midnight
 
     // Calculate start mins relative to current day
     let eventStartMins = start.getHours() * 60 + start.getMinutes();
-    if (evt.startDate.substring(0, 10) < cellDateStr) {
+    if (evt.startDate && evt.startDate.substring(0, 10) < cellDateStr) {
       eventStartMins = gridStartMins;
     }
 
     // Calculate end mins relative to current day
     let eventEndMins = end.getHours() * 60 + end.getMinutes();
-    if (evt.endDate.substring(0, 10) > cellDateStr) {
+    if (evt.endDate && evt.endDate.substring(0, 10) > cellDateStr) {
       eventEndMins = gridEndMins;
     }
 
@@ -375,9 +386,10 @@ export default function CalendarGrid({
         }}
         dir="rtl"
       >
-        <div className="text-[11px] font-bold truncate text-right">{evt.title}</div>
-        {height > 35 && (
-          <div className="text-[9px] text-white/90 mt-0.5 font-medium">
+        <div className="text-[11px] font-bold truncate text-right">{evt.activity}</div>
+        <div className="text-[8px] text-white/80 truncate">{evt.project}</div>
+        {height > 50 && (
+          <div className="text-[8px] text-white/70 mt-0.5">
             {getFormattedTime(evt.startDate)} - {getFormattedTime(evt.endDate)}
           </div>
         )}
@@ -417,6 +429,7 @@ export default function CalendarGrid({
 
                     const sortedEvents = events
                       .filter((e) => {
+                        if (!e.startDate || !e.endDate) return false;
                         const startD = e.startDate.substring(0, 10);
                         const endD = e.endDate.substring(0, 10);
                         return dateCompareStr >= startD && dateCompareStr <= endD;
@@ -430,9 +443,7 @@ export default function CalendarGrid({
                       <div
                         key={`${rowIdx}-${colIdx}`}
                         onClick={() => handleOpenAdd(`${dateCompareStr}T09:00`)}
-                        className={`border-r border-b border-[#2d2f31] bg-[#000000] px-2 py-1 min-h-[120px] hover:bg-[#17181a] transition-colors cursor-pointer flex flex-col overflow-hidden ${
-                          isCurrentMonth ? "" : "opacity-45"
-                        }`}
+                        className={`border-r border-b border-[#2d2f31] bg-[#000000] px-2 py-1 min-h-[120px] hover:bg-[#17181a] transition-colors cursor-pointer flex flex-col overflow-hidden`}
                       >
                         <div className="flex flex-col items-center mb-1">
                           {rowIdx === 0 && (
@@ -457,13 +468,19 @@ export default function CalendarGrid({
                                 e.stopPropagation();
                                 handleEventClick(evt);
                               }}
-                              className="flex items-center gap-1.5 text-[10px] leading-5 text-[#f1f3f4] hover:bg-white/5 rounded px-1 transition-colors"
+                              className="flex flex-col gap-0.5 text-[10px] text-[#f1f3f4] hover:bg-white/5 rounded px-1 py-0.5 transition-colors cursor-pointer border-l-2"
+                              style={{ borderLeftColor: evt.color || "#8ab4f8" }}
                             >
-                              <span
-                                className="w-1.5 h-1.5 rounded-full shrink-0"
-                                style={{ backgroundColor: evt.color || "#8ab4f8" }}
-                              />
-                              {renderDotEventText(evt)}
+                              <div className="flex items-center gap-1">
+                                <span
+                                  className="w-1.5 h-1.5 rounded-full shrink-0"
+                                  style={{ backgroundColor: evt.color || "#8ab4f8" }}
+                                />
+                                <span className="font-bold truncate">{evt.activity}</span>
+                              </div>
+                              <div className="text-[8px] text-[#a8c7fa] truncate">
+                                {evt.project} • {evt.category}
+                              </div>
                             </div>
                           ))}
 
@@ -506,6 +523,56 @@ export default function CalendarGrid({
               })}
             </div>
 
+            {/* All Day Events Section (Week View) */}
+            {(() => {
+              const weekDays = getWeekDays(currentDate);
+              const hasAnyAllDay = events.some(e => {
+                if (e.type !== "all-day" || !e.startDate || !e.endDate) return false;
+                return weekDays.some(day => {
+                  const dayStr = day.toISOString().substring(0, 10);
+                  return dayStr >= e.startDate.substring(0, 10) && dayStr <= e.endDate.substring(0, 10);
+                });
+              });
+
+              if (!hasAnyAllDay) return null;
+
+              return (
+                <div className="grid grid-cols-[56px_repeat(7,1fr)] border-b border-[#2d2f31] bg-[#000000] sticky top-[72px] z-20">
+                  <div className="border-r border-[#2d2f31] flex items-center justify-center text-[8px] text-[#c4c7c5] font-bold py-1 uppercase tracking-tighter bg-[#000000]">
+                    All Day
+                  </div>
+                  {weekDays.map((day, dayIdx) => {
+                    const dayStr = day.toISOString().substring(0, 10);
+                    const dayAllDayEvents = events.filter(e => 
+                      e.type === "all-day" && 
+                      e.startDate && e.endDate &&
+                      dayStr >= e.startDate.substring(0, 10) && 
+                      dayStr <= e.endDate.substring(0, 10)
+                    );
+                    return (
+                      <div key={dayIdx} className="p-1 border-r last:border-r-0 border-[#2d2f31] flex flex-col gap-1 min-h-[32px] bg-[#000000]">
+                        {dayAllDayEvents.map(evt => (
+                          <div
+                            key={evt.id}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleEventClick(evt);
+                            }}
+                            className="px-1.5 py-0.5 rounded text-[9px] font-bold text-white hover:brightness-110 transition-all truncate cursor-pointer"
+                            style={{ backgroundColor: evt.color || "#8ab4f8" }}
+                            dir="rtl"
+                          >
+                            <div>{evt.activity}</div>
+                            <div className="text-[7px] opacity-80">{evt.project}</div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              );
+            })()}
+
             {/* Hourly slots */}
             <div className="relative flex-1">
               {/* Red Time Indicator Line */}
@@ -522,12 +589,12 @@ export default function CalendarGrid({
               <div className="flex h-full">
                 {/* Hour Labels Column */}
                 <div className="w-[56px] flex flex-col bg-[#000000] border-r border-[#2d2f31]">
-                  {Array.from({ length: 19 }).map((_, index) => {
-                    const hour = index + 5;
+                  {Array.from({ length: 23 }).map((_, index) => {
+                    const hour = index + 1;
                     const amPm = hour >= 12 ? "PM" : "AM";
                     const displayHr = hour > 12 ? hour - 12 : (hour === 0 ? 12 : hour);
                     return (
-                      <div key={hour} className="h-[64px] relative">
+                      <div key={hour} className="h-[64px] relative border-b border-[#2d2f31]/30">
                         <span className="absolute -top-2.5 left-0 right-0 text-[10px] font-medium text-[#c4c7c5] text-center">
                           {`${displayHr} ${amPm}`}
                         </span>
@@ -542,20 +609,22 @@ export default function CalendarGrid({
                     const cellDateStr = `${day.getFullYear()}-${String(day.getMonth() + 1).padStart(2, "0")}-${String(day.getDate()).padStart(2, "0")}`;
                     
                     const dayEvents = events.filter(e => {
+                      if (!e.startDate || !e.endDate) return false;
                       const eventStart = e.startDate.substring(0, 10);
                       const eventEnd = e.endDate.substring(0, 10);
-                      return cellDateStr >= eventStart && cellDateStr <= eventEnd;
+                      return e.type === "timed" && cellDateStr >= eventStart && cellDateStr <= eventEnd;
                     });
                     const eventLayouts = getEventLayouts(dayEvents);
 
                     return (
-                      <div key={dayIdx} className="flex-1 relative group h-[1216px]">
+                      <div key={dayIdx} className="flex-1 relative group h-[1472px]">
+                        {/* All-day indicator in week view header could be added here, but for now focusing on timed */}
                         {/* Hour grid lines */}
-                        {Array.from({ length: 19 }).map((_, i) => (
+                        {Array.from({ length: 23 }).map((_, i) => (
                           <div 
                             key={i} 
                             className="h-[64px] border-b border-[#2d2f31] hover:bg-white/[0.02] cursor-pointer"
-                            onClick={() => handleOpenAdd(`${cellDateStr}T${String(i + 5).padStart(2, "0")}:00`)}
+                            onClick={() => handleOpenAdd(`${cellDateStr}T${String(i + 1).padStart(2, "0")}:00`)}
                           />
                         ))}
                         
@@ -583,6 +652,46 @@ export default function CalendarGrid({
               </div>
             </div>
 
+            {/* All Day Events Section */}
+            {(() => {
+              const currentDayStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(currentDate.getDate()).padStart(2, "0")}`;
+              const allDayEvents = events.filter(e => {
+                if (!e.startDate || !e.endDate) return false;
+                const eventStart = e.startDate.substring(0, 10);
+                const eventEnd = e.endDate.substring(0, 10);
+                return e.type === "all-day" && currentDayStr >= eventStart && currentDayStr <= eventEnd;
+              });
+              
+              if (allDayEvents.length === 0) return null;
+              
+              return (
+                <div className="grid grid-cols-[56px_1fr] border-b border-[#2d2f31] bg-[#000000] sticky top-[57px] z-30">
+                  <div className="border-r border-[#2d2f31] flex items-center justify-center text-[8px] text-[#c4c7c5] font-bold py-2 uppercase tracking-tighter bg-[#000000]">
+                    All Day
+                  </div>
+                  <div className="p-1 flex flex-col gap-1 bg-[#000000]">
+                    {allDayEvents.map(evt => (
+                      <div
+                        key={evt.id}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleEventClick(evt);
+                        }}
+                        className="px-2 py-1 rounded text-[11px] font-bold text-white hover:brightness-110 transition-all truncate shadow-sm cursor-pointer"
+                        style={{ 
+                          backgroundColor: evt.color || "#8ab4f8",
+                        }}
+                        dir="rtl"
+                      >
+                        <div>{evt.activity}</div>
+                        <div className="text-[8px] opacity-80">{evt.project}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              );
+            })()}
+
             <div className="relative flex-1">
               {/* Red Time Indicator Line */}
               {getTimeLinePosition() !== null && (
@@ -598,12 +707,12 @@ export default function CalendarGrid({
               <div className="flex h-full">
                 {/* Hour Labels Column */}
                 <div className="w-[56px] flex flex-col bg-[#000000] border-r border-[#2d2f31]">
-                  {Array.from({ length: 19 }).map((_, index) => {
-                    const hour = index + 5;
+                  {Array.from({ length: 23 }).map((_, index) => {
+                    const hour = index + 1;
                     const amPm = hour >= 12 ? "PM" : "AM";
                     const displayHr = hour > 12 ? hour - 12 : (hour === 0 ? 12 : hour);
                     return (
-                      <div key={hour} className="h-[80px] relative">
+                      <div key={hour} className="h-[80px] relative border-b border-[#2d2f31]/30">
                         <span className="absolute -top-3 left-0 right-0 text-[11px] font-medium text-[#c4c7c5] text-center">
                           {`${displayHr} ${amPm}`}
                         </span>
@@ -615,14 +724,14 @@ export default function CalendarGrid({
                 {/* Day Content Area */}
                 <div className="flex-1 relative">
                   {/* Hour grid lines */}
-                  <div className="flex flex-col h-[1520px]">
-                    {Array.from({ length: 19 }).map((_, i) => {
+                  <div className="flex flex-col h-[1840px]">
+                    {Array.from({ length: 23 }).map((_, i) => {
                       const currentDayStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(currentDate.getDate()).padStart(2, "0")}`;
                       return (
                         <div 
                           key={i} 
                           className="h-[80px] border-b border-[#2d2f31] hover:bg-white/[0.02] cursor-pointer"
-                          onClick={() => handleOpenAdd(`${currentDayStr}T${String(i + 5).padStart(2, "0")}:00`)}
+                          onClick={() => handleOpenAdd(`${currentDayStr}T${String(i + 1).padStart(2, "0")}:00`)}
                         />
                       );
                     })}
@@ -634,9 +743,10 @@ export default function CalendarGrid({
                       {(() => {
                         const currentDayStr = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, "0")}-${String(currentDate.getDate()).padStart(2, "0")}`;
                         const dayEvents = events.filter(e => {
+                          if (!e.startDate || !e.endDate) return false;
                           const eventStart = e.startDate.substring(0, 10);
                           const eventEnd = e.endDate.substring(0, 10);
-                          return currentDayStr >= eventStart && currentDayStr <= eventEnd;
+                          return e.type === "timed" && currentDayStr >= eventStart && currentDayStr <= eventEnd;
                         });
                         const eventLayouts = getEventLayouts(dayEvents);
                         return eventLayouts.map(layout => renderEventBlock(layout.event, layout.column, layout.totalColumns, 80, currentDayStr));
@@ -657,80 +767,128 @@ export default function CalendarGrid({
             <h3 className="font-bold text-lg text-white">إضافة مهمة جديدة إلى تقويم أثر</h3>
 
             <div className="space-y-3.5">
+              {/* Event Type Toggle */}
+              <div className="flex gap-2 p-1 bg-[#131314] rounded-xl border border-[#2d2f31]">
+                <button
+                  type="button"
+                  onClick={() => setNewType("timed")}
+                  className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all ${
+                    newType === "timed" ? "bg-[#0b57d0] text-white" : "text-[#c4c7c5] hover:text-white"
+                  }`}
+                >
+                  وقت محدد
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setNewType("all-day")}
+                  className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all ${
+                    newType === "all-day" ? "bg-[#0b57d0] text-white" : "text-[#c4c7c5] hover:text-white"
+                  }`}
+                >
+                  طوال اليوم
+                </button>
+              </div>
+
+              {/* 1. Project */}
               <div>
-                <label className="text-[11px] font-bold text-[#c4c7c5] block mb-1">اسم الفعالية / المهمة</label>
+                <label className="text-[11px] font-bold text-[#c4c7c5] block mb-1">المشروع (Project)</label>
+                <select
+                  className="w-full px-3 py-2 text-xs bg-[#131314] border border-[#2d2f31] rounded-xl focus:outline-none focus:border-[#8ab4f8] text-right text-white"
+                  value={newProject}
+                  onChange={(e) => handleProjectChange(e.target.value)}
+                >
+                  <option value="" disabled className="bg-[#1f1f1f]">اختر مشروعاً</option>
+                  {projects.map((proj) => (
+                    <option key={proj.id} value={proj.name} className="bg-[#1f1f1f]">{proj.name}</option>
+                  ))}
+                </select>
+              </div>
+
+              {/* 2. Category */}
+              <div>
+                <label className="text-[11px] font-bold text-[#c4c7c5] block mb-1">القسم / التصنيف (Category)</label>
+                <select
+                  className="w-full px-3 py-2 text-xs bg-[#131314] border border-[#2d2f31] rounded-xl focus:outline-none focus:border-[#8ab4f8] text-right text-white"
+                  value={newCategory}
+                  onChange={(e) => setNewCategory(e.target.value)}
+                >
+                  <option value="Bootcamp" className="bg-[#1f1f1f]">Bootcamp</option>
+                  <option value="Mentorship" className="bg-[#1f1f1f]">Mentorship</option>
+                  <option value="Selection Day" className="bg-[#1f1f1f]">Selection Day</option>
+                  <option value="Demo Day" className="bg-[#1f1f1f]">Demo Day</option>
+                  <option value="Hackathon" className="bg-[#1f1f1f]">Hackathon</option>
+                  <option value="Training Day" className="bg-[#1f1f1f]">Training Day</option>
+                  <option value="Incubator" className="bg-[#1f1f1f]">Incubator</option>
+                  <option value="إدارة" className="bg-[#1f1f1f]">إدارة</option>
+                </select>
+              </div>
+
+              {/* 3. Activity / Sub-Activity */}
+              <div>
+                <label className="text-[11px] font-bold text-[#c4c7c5] block mb-1">النشاط / النشاط الفرعي (Activity / Sub-Activity)</label>
                 <input
                   type="text"
                   placeholder="مثال: مراجعة الكود مع عبد الله"
                   className="w-full px-3 py-2 text-xs bg-[#131314] border border-[#2d2f31] rounded-xl focus:outline-none focus:border-[#8ab4f8] text-right text-white"
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
+                  value={newActivity}
+                  onChange={(e) => setNewActivity(e.target.value)}
                 />
               </div>
 
+              {/* 4. Start Date & 5. End Date */}
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-[11px] font-bold text-[#c4c7c5] block mb-1">تاريخ البدء (Start Date)</label>
+                  <input
+                    type="date"
+                    className="w-full px-2 py-1.5 text-xs bg-[#131314] border border-[#2d2f31] rounded-xl text-center text-white"
+                    value={newType === "all-day" ? newAllDayStart : newStartDate}
+                    onChange={(e) => newType === "all-day" ? setNewAllDayStart(e.target.value) : setNewStartDate(e.target.value)}
+                  />
+                </div>
+                <div>
+                  <label className="text-[11px] font-bold text-[#c4c7c5] block mb-1">تاريخ الانتهاء (End Date)</label>
+                  <input
+                    type="date"
+                    className="w-full px-2 py-1.5 text-xs bg-[#131314] border border-[#2d2f31] rounded-xl text-center text-white"
+                    value={newType === "all-day" ? newAllDayEnd : newEndDate}
+                    onChange={(e) => newType === "all-day" ? setNewAllDayEnd(e.target.value) : setNewEndDate(e.target.value)}
+                  />
+                </div>
+              </div>
+
+              {/* 6. Start Time & 7. End Time */}
+              {newType === "timed" && (
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-[11px] font-bold text-[#c4c7c5] block mb-1">وقت البدء (Start Time)</label>
+                    <input
+                      type="time"
+                      className="w-full px-3 py-2 text-xs bg-[#131314] border border-[#2d2f31] rounded-xl focus:outline-none focus:border-[#8ab4f8] text-right text-white"
+                      value={newStartTime}
+                      onChange={(e) => setNewStartTime(e.target.value)}
+                    />
+                  </div>
+                  <div>
+                    <label className="text-[11px] font-bold text-[#c4c7c5] block mb-1">وقت الانتهاء (End Time)</label>
+                    <input
+                      type="time"
+                      className="w-full px-3 py-2 text-xs bg-[#131314] border border-[#2d2f31] rounded-xl focus:outline-none focus:border-[#8ab4f8] text-right text-white"
+                      value={newEndTime}
+                      onChange={(e) => setNewEndTime(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+
               <div>
-                <label className="text-[11px] font-bold text-[#c4c7c5] block mb-1">تفاصيل المهمة والمستهدفات</label>
+                <label className="text-[11px] font-bold text-[#c4c7c5] block mb-1">تفاصيل إضافية (اختياري)</label>
                 <textarea
-                  placeholder="وصف تفصيلي للمخرجات المتوقعة في هذا السلوت..."
+                  placeholder="وصف تفصيلي للمخرجات المتوقعة..."
                   className="w-full h-16 px-3 py-2 text-xs bg-[#131314] border border-[#2d2f31] rounded-xl focus:outline-none focus:border-[#8ab4f8] text-right text-white resize-none"
                   value={newDesc}
                   onChange={(e) => setNewDesc(e.target.value)}
                 />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[11px] font-bold text-[#c4c7c5] block mb-1">تاريخ ووقت البدء</label>
-                  <input
-                    type="datetime-local"
-                    className="w-full px-2 py-1.5 text-xs bg-[#131314] border border-[#2d2f31] rounded-xl text-center text-white"
-                    value={newStartDate}
-                    onChange={(e) => setNewStartDate(e.target.value)}
-                  />
-                </div>
-                <div>
-                  <label className="text-[11px] font-bold text-[#c4c7c5] block mb-1">تاريخ ووقت الانتهاء</label>
-                  <input
-                    type="datetime-local"
-                    className="w-full px-2 py-1.5 text-xs bg-[#131314] border border-[#2d2f31] rounded-xl text-center text-white"
-                    value={newEndDate}
-                    onChange={(e) => setNewEndDate(e.target.value)}
-                  />
-                </div>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="text-[11px] font-bold text-[#c4c7c5] block mb-1">المشروع</label>
-                  <select
-                    className="w-full px-2 py-2 text-xs bg-[#131314] border border-[#2d2f31] rounded-xl text-right text-white"
-                    value={newProject}
-                    onChange={(e) => handleProjectChange(e.target.value)}
-                  >
-                    <option value="" disabled className="bg-[#1f1f1f]">اختر مشروعاً</option>
-                    {projects.map((proj) => (
-                      <option key={proj.id} value={proj.name} className="bg-[#1f1f1f]">{proj.name}</option>
-                    ))}
-                  </select>
-                </div>
-
-                <div>
-                  <label className="text-[11px] font-bold text-[#c4c7c5] block mb-1">القسم / التصنيف</label>
-                  <select
-                    className="w-full px-2 py-2 text-xs bg-[#131314] border border-[#2d2f31] rounded-xl text-right text-white"
-                    value={newCategory}
-                    onChange={(e) => setNewCategory(e.target.value)}
-                  >
-                    <option value="Bootcamp" className="bg-[#1f1f1f]">Bootcamp</option>
-                    <option value="Mentorship" className="bg-[#1f1f1f]">Mentorship</option>
-                    <option value="Selection Day" className="bg-[#1f1f1f]">Selection Day</option>
-                    <option value="Demo Day" className="bg-[#1f1f1f]">Demo Day</option>
-                    <option value="Hackathon" className="bg-[#1f1f1f]">Hackathon</option>
-                    <option value="Training Day" className="bg-[#1f1f1f]">Training Day</option>
-                    <option value="Incubator" className="bg-[#1f1f1f]">Incubator</option>
-                    <option value="إدارة" className="bg-[#1f1f1f]">إدارة</option>
-                  </select>
-                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
@@ -761,7 +919,7 @@ export default function CalendarGrid({
                 type="button"
                 onClick={submitNewEvent}
                 className="px-5 py-2 bg-[#0b57d0] hover:bg-[#0842a0] text-white font-medium text-xs rounded-xl shadow-md"
-                disabled={!newTitle.trim()}
+                disabled={!newActivity.trim() || !newProject}
               >
                 إضافة فاعلية للجدول
               </button>
@@ -770,7 +928,7 @@ export default function CalendarGrid({
         </div>
       )}
 
-      {/* ================= MODAL: DETAIL & RESCHEDULE ================= */}
+      {/* ================= MODAL: DETAIL & EDIT ================= */}
       {showDetailModal && activeEvent && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-xs flex items-center justify-center z-50 p-4" id="detail-event-modal" dir="rtl">
           <div className="bg-[#1e1f20] border border-[#2d2f31] rounded-3xl p-6 w-full max-w-md shadow-2xl space-y-4 text-right">
@@ -796,16 +954,47 @@ export default function CalendarGrid({
             </div>
 
             <div className="space-y-3 text-right">
-              <h3 className="font-bold text-base text-white">{activeEvent.title}</h3>
+              <div className="flex gap-2 p-1 bg-[#131314] rounded-xl border border-[#2d2f31]">
+                <button
+                  type="button"
+                  onClick={() => {
+                    const updated = { ...activeEvent, type: "timed" as EventType };
+                    onUpdateEvent(updated);
+                    setActiveEvent(updated);
+                  }}
+                  className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all ${
+                    activeEvent.type === "timed" ? "bg-[#0b57d0] text-white" : "text-[#c4c7c5] hover:text-white"
+                  }`}
+                >
+                  وقت محدد
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    const updated = { ...activeEvent, type: "all-day" as EventType };
+                    onUpdateEvent(updated);
+                    setActiveEvent(updated);
+                  }}
+                  className={`flex-1 py-1.5 text-[11px] font-bold rounded-lg transition-all ${
+                    activeEvent.type === "all-day" ? "bg-[#0b57d0] text-white" : "text-[#c4c7c5] hover:text-white"
+                  }`}
+                >
+                  طوال اليوم
+                </button>
+              </div>
+
+              <h3 className="font-bold text-base text-white">{activeEvent.activity}</h3>
               <p className="text-xs text-[#c4c7c5] leading-relaxed bg-[#131314] p-3 rounded-xl border border-[#2d2f31]">{activeEvent.description || "لا يوجد وصف متوفر لهذه الفعالية."}</p>
 
               <div className="space-y-3 pt-1">
                 <div className="space-y-1">
-                  <span className="text-[10px] text-[#c4c7c5] font-bold block">توقيت البداية</span>
+                  <span className="text-[10px] text-[#c4c7c5] font-bold block">
+                    تاريخ البدء (Start Date)
+                  </span>
                   <div className="flex items-center gap-1.5 text-[#e3e3e3] bg-[#131314] p-2 rounded-xl border border-[#2d2f31]">
                     <Clock className="w-3.5 h-3.5 text-[#c4c7c5] shrink-0" />
                     <input
-                      type="datetime-local"
+                      type="date"
                       value={activeEvent.startDate}
                       onChange={(e) => updateActiveSlotTime("startDate", e.target.value)}
                       className="bg-transparent text-[11px] font-semibold focus:outline-none flex-1 text-white"
@@ -814,17 +1003,52 @@ export default function CalendarGrid({
                 </div>
 
                 <div className="space-y-1">
-                  <span className="text-[10px] text-[#c4c7c5] font-bold block">توقيت النهاية</span>
+                  <span className="text-[10px] text-[#c4c7c5] font-bold block">
+                    تاريخ الانتهاء (End Date)
+                  </span>
                   <div className="flex items-center gap-1.5 text-[#e3e3e3] bg-[#131314] p-2 rounded-xl border border-[#2d2f31]">
                     <Clock className="w-3.5 h-3.5 text-[#c4c7c5] shrink-0" />
                     <input
-                      type="datetime-local"
+                      type="date"
                       value={activeEvent.endDate}
                       onChange={(e) => updateActiveSlotTime("endDate", e.target.value)}
                       className="bg-transparent text-[11px] font-semibold focus:outline-none flex-1 text-white"
                     />
                   </div>
                 </div>
+
+                {activeEvent.type === "timed" && (
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1">
+                      <span className="text-[10px] text-[#c4c7c5] font-bold block">
+                        وقت البدء (Start Time)
+                      </span>
+                      <div className="flex items-center gap-1.5 text-[#e3e3e3] bg-[#131314] p-2 rounded-xl border border-[#2d2f31]">
+                        <Clock className="w-3.5 h-3.5 text-[#c4c7c5] shrink-0" />
+                        <input
+                          type="time"
+                          value={activeEvent.startTime}
+                          onChange={(e) => updateActiveSlotTime("startTime", e.target.value)}
+                          className="bg-transparent text-[11px] font-semibold focus:outline-none flex-1 text-white"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-1">
+                      <span className="text-[10px] text-[#c4c7c5] font-bold block">
+                        وقت الانتهاء (End Time)
+                      </span>
+                      <div className="flex items-center gap-1.5 text-[#e3e3e3] bg-[#131314] p-2 rounded-xl border border-[#2d2f31]">
+                        <Clock className="w-3.5 h-3.5 text-[#c4c7c5] shrink-0" />
+                        <input
+                          type="time"
+                          value={activeEvent.endTime}
+                          onChange={(e) => updateActiveSlotTime("endTime", e.target.value)}
+                          className="bg-transparent text-[11px] font-semibold focus:outline-none flex-1 text-white"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex items-center justify-between bg-[#131314] p-3 rounded-xl border border-[#2d2f31] mt-2">
@@ -841,25 +1065,29 @@ export default function CalendarGrid({
               <div className="pt-2">
                 <label className="text-[10px] font-bold text-[#c4c7c5] block mb-1">الوضع الحالي للمهمة</label>
                 <div className="flex flex-wrap gap-1.5">
-                  {["pending", "in_progress", "completed", "delayed"].map((st) => {
+                  {["pending", "in-progress", "completed", "delayed"].map((st) => {
                     const isSelected = activeEvent.status === st;
                     const labelMap: Record<string, string> = {
-                      pending: "معلق ⏳",
-                      in_progress: "نشط ⚡",
-                      completed: "مكتمل ✅",
-                      delayed: "متأخر ⚠️"
+                      "pending": "معلق ⏳",
+                      "in-progress": "نشط ⚡",
+                      "completed": "مكتمل ✅",
+                      "delayed": "متأخر ⚠️"
                     };
                     const colorMap: Record<string, string> = {
-                      pending: "bg-[#2d2f31] border-[#3c4043] text-[#e3e3e3]",
-                      in_progress: "bg-sky-950/40 border-sky-900/30 text-sky-400",
-                      completed: "bg-emerald-950/40 border-emerald-900/30 text-emerald-400",
-                      delayed: "bg-rose-950/40 border-rose-900/30 text-rose-400"
+                      "pending": "bg-[#2d2f31] border-[#3c4043] text-[#e3e3e3]",
+                      "in-progress": "bg-sky-950/40 border-sky-900/30 text-sky-400",
+                      "completed": "bg-emerald-950/40 border-emerald-900/30 text-emerald-400",
+                      "delayed": "bg-rose-950/40 border-rose-900/30 text-rose-400"
                     };
 
                     return (
                       <button
                         key={st}
-                        onClick={() => updateActiveStatus(st as EventStatus)}
+                        onClick={() => {
+                          const updated = { ...activeEvent, status: st as EventStatus };
+                          onUpdateEvent(updated);
+                          setActiveEvent(updated);
+                        }}
                         className={`px-3 py-1 text-[11px] font-bold rounded-lg border transition-all ${
                           isSelected 
                             ? `${colorMap[st]} shadow-sm font-extrabold border-2` 
