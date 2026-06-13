@@ -265,9 +265,9 @@ async function runServer() {
       res.sendFile(import_path.default.join(distPath, "index.html"));
     });
   }
-  const SYNC_INTERVAL = 30 * 1e3;
+  const SYNC_INTERVAL = 60 * 60 * 1e3;
   if (supabase) {
-    console.log(`Starting periodic sync with Google Sheets every ${SYNC_INTERVAL / 1e3} seconds...`);
+    console.log(`Starting periodic sync with Google Sheets every ${SYNC_INTERVAL / (60 * 60 * 1e3)} hour(s)...`);
     try {
       console.log("Performing initial sync...");
       await syncWithGoogleSheets(supabase);

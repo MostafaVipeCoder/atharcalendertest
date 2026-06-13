@@ -25,6 +25,21 @@ export default function App() {
   const [newProjectName, setNewProjectName] = useState("");
   const [newProjectColor, setNewProjectColor] = useState("#8ab4f8");
   const [searchQuery, setSearchQuery] = useState("");
+  const [isSidebarOpen, setIsSidebarOpen] = useState<boolean>(true);
+
+  // Responsive sidebar default
+  useEffect(() => {
+    const handleResize = () => {
+      if (window.innerWidth < 768) {
+        setIsSidebarOpen(false);
+      } else {
+        setIsSidebarOpen(true);
+      }
+    };
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
 
   // Sync state
   const [isSyncing, setIsSyncing] = useState(false);
@@ -124,29 +139,39 @@ export default function App() {
     }
   };
 
-  // Real-time subscription to database changes
+  // Real-time subscription to database changes with a debounce to prevent API flooding during bulk operations
   useEffect(() => {
     if (!supabase) return;
+
+    let debounceTimeout: any = null;
+    const debouncedFetch = (reason: string) => {
+      if (debounceTimeout) clearTimeout(debounceTimeout);
+      debounceTimeout = setTimeout(() => {
+        console.log(`Bulk changes complete (${reason}), refetching calendar data...`);
+        fetchData();
+      }, 2000); // Coalesce multiple notifications within 2 seconds
+    };
 
     const channel = supabase
       .channel('realtime-sync')
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'project_schedules' },
         () => {
-          console.log("Project schedules changed, refreshing...");
-          fetchData();
+          console.log("Project schedules changed, queuing refresh...");
+          debouncedFetch("schedules");
         }
       )
       .on('postgres_changes', 
         { event: '*', schema: 'public', table: 'projects' },
         () => {
-          console.log("Projects changed, refreshing...");
-          fetchData();
+          console.log("Projects changed, queuing refresh...");
+          debouncedFetch("projects");
         }
       )
       .subscribe();
 
     return () => {
+      if (debounceTimeout) clearTimeout(debounceTimeout);
       supabase.removeChannel(channel);
     };
   }, [supabase]);
@@ -466,54 +491,57 @@ export default function App() {
   return (
     <div className={`h-screen flex flex-col font-sans bg-white text-[#1f1f1f] dark:bg-[#131314] dark:text-[#e3e3e3] transition-colors duration-250 ${darkMode ? "dark" : ""}`} dir="ltr">
       {/* Top Google Calendar Navigation Header */}
-      <header className="h-16 border-b border-[#e0e2e0] dark:border-[#2d2f31] bg-white dark:bg-[#131314] px-3 flex items-center justify-between select-none">
+      <header className="h-16 border-b border-[#e0e2e0] dark:border-[#2d2f31] bg-white dark:bg-[#131314] px-2 md:px-3 flex items-center justify-between select-none">
         {/* Left corner: Logo and Navigation controls */}
-        <div className="flex items-center gap-2">
-          <button className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-[#2d2f31] text-[#5f6368] dark:text-[#c4c7c5]">
+        <div className="flex items-center gap-1 sm:gap-2 overflow-hidden">
+          <button 
+            onClick={() => setIsSidebarOpen(!isSidebarOpen)}
+            className="p-2 rounded-full hover:bg-slate-100 dark:hover:bg-[#2d2f31] text-[#5f6368] dark:text-[#c4c7c5] shrink-0"
+          >
             <Menu className="w-5 h-5" />
           </button>
           
           {/* Calendar App Logo */}
-          <div className="flex items-center gap-2 ml-2">
-            <div className="bg-[#4285f4] text-white font-bold w-10 h-10 rounded-lg flex items-center justify-center text-lg shadow-sm">
+          <div className="flex items-center gap-1 sm:gap-2 ml-1 sm:ml-2 shrink-0">
+            <div className="bg-[#4285f4] text-white font-bold w-8 h-8 sm:w-10 sm:h-10 rounded-lg flex items-center justify-center text-base sm:text-lg shadow-sm">
               <span>{currentDate.getDate()}</span>
             </div>
-            <span className="text-xl font-medium text-white hidden sm:block">Calendar</span>
+            <span className="text-lg sm:text-xl font-medium text-white hidden md:block">Calendar</span>
           </div>
 
           {/* Today selector */}
           <button
             onClick={() => setCurrentDate(new Date())}
-            className="gcal-btn gcal-btn-outline ml-4"
+            className="gcal-btn gcal-btn-outline ml-2 sm:ml-4 text-xs sm:text-sm px-2.5 sm:px-4 py-1 sm:py-2"
           >
             Today
           </button>
 
           {/* Nav arrows */}
-          <div className="flex items-center gap-0.5">
-            <button onClick={handlePrev} className="gcal-btn-icon">
-              <ChevronLeft className="w-5 h-5" />
+          <div className="flex items-center gap-0.5 shrink-0">
+            <button onClick={handlePrev} className="gcal-btn-icon p-1.5 sm:p-2">
+              <ChevronLeft className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
-            <button onClick={handleNext} className="gcal-btn-icon">
-              <ChevronRight className="w-5 h-5" />
+            <button onClick={handleNext} className="gcal-btn-icon p-1.5 sm:p-2">
+              <ChevronRight className="w-4 h-4 sm:w-5 sm:h-5" />
             </button>
           </div>
 
           {/* Current Date Display */}
-          <span className="text-xl font-medium text-[#1f1f1f] dark:text-white ml-4">
-            {currentDate.toLocaleDateString("en-US", { month: "long", year: "numeric" })}
+          <span className="text-sm sm:text-lg md:text-xl font-medium text-[#1f1f1f] dark:text-white ml-2 sm:ml-4 truncate">
+            {currentDate.toLocaleDateString("en-US", { month: "short", year: "numeric" })}
           </span>
         </div>
 
         {/* Right corner: Search, Settings, View switcher, Profile */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1 sm:gap-2">
           {/* Action icons */}
-          <div className="relative group">
-            <Search className="w-5 h-5 absolute left-3 top-2.5 text-[#5f6368] dark:text-[#c4c7c5]" />
+          <div className="relative group shrink-0">
+            <Search className="w-4 h-4 absolute left-2.5 top-2.5 text-[#5f6368] dark:text-[#c4c7c5]" />
             <input
               type="text"
-              placeholder="Search events..."
-              className="bg-slate-50 dark:bg-[#1e1f20] border border-[#dadce0] dark:border-[#3c4043] rounded-full pl-10 pr-4 py-1.5 text-sm text-[#1f1f1f] dark:text-[#e3e3e3] outline-none focus:border-[#0b57d0] dark:focus:border-[#8ab4f8] focus:bg-white dark:focus:bg-[#131314] transition-all w-40 focus:w-64"
+              placeholder="Search..."
+              className="bg-slate-50 dark:bg-[#1e1f20] border border-[#dadce0] dark:border-[#3c4043] rounded-full pl-8 pr-2.5 py-1 sm:py-1.5 text-xs sm:text-sm text-[#1f1f1f] dark:text-[#e3e3e3] outline-none focus:border-[#0b57d0] dark:focus:border-[#8ab4f8] focus:bg-white dark:focus:bg-[#131314] transition-all w-24 focus:w-36 sm:w-40 sm:focus:w-64"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
             />
@@ -522,18 +550,18 @@ export default function App() {
           {/* Dark Mode toggle */}
           <button
             onClick={() => setDarkMode(!darkMode)}
-            className="gcal-btn-icon"
+            className="gcal-btn-icon p-1.5 sm:p-2"
             title="Toggle Theme"
           >
-            {darkMode ? <Sun className="w-5 h-5 text-amber-500" /> : <Moon className="w-5 h-5 text-indigo-400" />}
+            {darkMode ? <Sun className="w-4 h-4 sm:w-5 sm:h-5 text-amber-500" /> : <Moon className="w-4 h-4 sm:w-5 sm:h-5 text-indigo-400" />}
           </button>
 
           {/* View selector dropdown */}
-          <div className="relative mx-1">
+          <div className="relative mx-0.5 sm:mx-1 shrink-0">
             <select
               value={viewMode}
               onChange={(e) => setViewMode(e.target.value as any)}
-              className="bg-white dark:bg-[#131314] border border-[#dadce0] dark:border-[#3c4043] rounded-md px-3.5 py-1.5 text-sm text-[#1f1f1f] dark:text-[#e3e3e3] outline-none cursor-pointer hover:bg-slate-100 dark:hover:bg-[#2d2f31] font-semibold pr-8"
+              className="bg-white dark:bg-[#131314] border border-[#dadce0] dark:border-[#3c4043] rounded-md px-2 sm:px-3.5 py-1 sm:py-1.5 text-xs sm:text-sm text-[#1f1f1f] dark:text-[#e3e3e3] outline-none cursor-pointer hover:bg-slate-100 dark:hover:bg-[#2d2f31] font-semibold pr-6 sm:pr-8"
               style={{ appearance: "none" }}
             >
               <option value="month">Month</option>
@@ -541,17 +569,31 @@ export default function App() {
               <option value="day">Day</option>
               <option value="dashboard">Dashboard 📊</option>
             </select>
-            <ChevronDown className="w-4 h-4 text-[#5f6368] dark:text-[#c4c7c5] absolute right-2.5 top-2.5 pointer-events-none" />
+            <ChevronDown className="w-3 h-3 sm:w-4 sm:h-4 text-[#5f6368] dark:text-[#c4c7c5] absolute right-2 top-2 sm:right-2.5 sm:top-2.5 pointer-events-none" />
+          </div>
         </div>
-
-      </div>
-    </header>
+      </header>
 
       {/* Main workspace section */}
-      <div className="flex-1 flex overflow-hidden">
+      <div className="flex-1 flex overflow-hidden relative">
+        {/* Backdrop for mobile sidebar */}
+        {isSidebarOpen && (
+          <div 
+            className="fixed inset-0 bg-black/40 backdrop-blur-xs z-30 md:hidden transition-opacity duration-300"
+            onClick={() => setIsSidebarOpen(false)}
+          />
+        )}
         
         {/* LEFT SIDEBAR (Mock Create button, Mini calendar, checklist overlays, tools) */}
-        <aside className="w-64 border-r border-[#e0e2e0] dark:border-[#2d2f31] flex flex-col p-4 gap-4 overflow-y-auto shrink-0 bg-white dark:bg-[#131314]">
+        <aside className={`
+          fixed md:static inset-y-0 left-0 z-40 w-64 border-r border-[#e0e2e0] dark:border-[#2d2f31] 
+          flex flex-col p-4 gap-4 overflow-y-auto shrink-0 bg-white dark:bg-[#131314] 
+          transition-all duration-300 ease-in-out
+          ${isSidebarOpen 
+            ? "translate-x-0 opacity-100 visible" 
+            : "-translate-x-full opacity-0 invisible md:translate-x-0 md:opacity-100 md:visible md:w-0 md:p-0 md:border-r-0 overflow-hidden"
+          }
+        `}>
           {/* Create Floating Action Button */}
           <div className="flex flex-col gap-2 mb-2">
             <button

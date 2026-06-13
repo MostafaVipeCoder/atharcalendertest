@@ -208,11 +208,11 @@ async function runServer() {
     });
   }
 
-  // Start periodic sync with Google Sheets (every 30 seconds)
-  const SYNC_INTERVAL = 30 * 1000; // 30 seconds
+  // Start periodic sync with Google Sheets (every 1 hour)
+  const SYNC_INTERVAL = 60 * 60 * 1000; // 1 hour
   
   if (supabase) {
-    console.log(`Starting periodic sync with Google Sheets every ${SYNC_INTERVAL/1000} seconds...`);
+    console.log(`Starting periodic sync with Google Sheets every ${SYNC_INTERVAL / (60 * 60 * 1000)} hour(s)...`);
     
     // Initial sync on server start
     try {

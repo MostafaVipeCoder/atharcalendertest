@@ -401,11 +401,11 @@ export default function CalendarGrid({
     <div className="flex-1 flex flex-col bg-[#000000] overflow-hidden" id="calendar-grid-main">
       
       {/* Calendar Grid Container */}
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-auto">
         
         {/* ================= VIEW MODE: MONTH ================= */}
         {viewMode === "month" && (
-          <div className="h-full flex flex-col min-w-[980px]" dir="ltr">
+          <div className="h-full flex flex-col min-w-[750px] md:min-w-0" dir="ltr">
             <div className="flex-1 grid grid-cols-[28px_repeat(7,minmax(0,1fr))] grid-rows-6 border-t border-l border-[#2d2f31]" id="month-grid-cells">
               {monthRows.map((row, rowIdx) => (
                 <React.Fragment key={`month-row-${rowIdx}`}>
@@ -473,17 +473,17 @@ export default function CalendarGrid({
                                 e.stopPropagation();
                                 handleEventClick(evt);
                               }}
-                              className="flex flex-col gap-0.5 text-[10px] text-[#1f1f1f] dark:text-[#f1f3f4] hover:bg-slate-100 dark:hover:bg-white/5 rounded px-1 py-0.5 transition-colors cursor-pointer border-l-2"
+                              className="flex flex-col gap-0.5 text-[9px] md:text-[10px] text-[#1f1f1f] dark:text-[#f1f3f4] hover:bg-slate-100 dark:hover:bg-white/5 rounded px-1 py-0.5 transition-colors cursor-pointer border-l-2"
                               style={{ borderLeftColor: evt.color || "#0b57d0" }}
                             >
                               <div className="flex items-center gap-1">
                                 <span
-                                  className="w-1.5 h-1.5 rounded-full shrink-0"
+                                  className="w-1 md:w-1.5 h-1 md:h-1.5 rounded-full shrink-0"
                                   style={{ backgroundColor: evt.color || "#0b57d0" }}
                                 />
-                                <span className="font-bold truncate">{evt.activity}</span>
+                                <span className="font-bold truncate text-[9px] md:text-[10px]">{evt.activity}</span>
                               </div>
-                              <div className="text-[8px] text-[#5f6368] dark:text-[#a8c7fa] truncate">
+                              <div className="text-[7px] md:text-[8px] text-[#5f6368] dark:text-[#a8c7fa] truncate hidden md:block">
                                 {evt.project} • {evt.category}
                               </div>
                             </div>
@@ -506,7 +506,7 @@ export default function CalendarGrid({
 
         {/* ================= VIEW MODE: WEEK ================= */}
         {viewMode === "week" && (
-          <div className="flex flex-col h-full overflow-y-auto relative" dir="ltr">
+          <div className="flex flex-col h-full overflow-y-auto relative min-w-[700px] md:min-w-0" dir="ltr">
             {/* Header Days Row */}
             <div className="grid grid-cols-[56px_repeat(7,1fr)] border-b border-[#dadce0] dark:border-[#2d2f31] text-center sticky top-0 bg-white dark:bg-[#000000] z-20">
               <div className="py-4 bg-white dark:bg-[#000000] font-bold text-[9px] text-[#5f6368] dark:text-[#c4c7c5] border-r border-[#dadce0] dark:border-[#2d2f31]">GMT+3</div>
@@ -646,7 +646,7 @@ export default function CalendarGrid({
 
         {/* ================= VIEW MODE: DAY ================= */}
         {viewMode === "day" && (
-          <div className="flex flex-col h-full overflow-y-auto relative" dir="ltr">
+          <div className="flex flex-col h-full overflow-y-auto relative min-w-[320px] md:min-w-0" dir="ltr">
             <div className="grid grid-cols-[56px_1fr] border-b border-[#dadce0] dark:border-[#2d2f31] text-center sticky top-0 bg-white dark:bg-[#000000] z-20">
               <div className="py-4 bg-white dark:bg-[#000000] font-bold text-[10px] text-[#5f6368] dark:text-[#c4c7c5] border-r border-[#dadce0] dark:border-[#2d2f31]">GMT+3</div>
               <div className="py-2.5 bg-white dark:bg-[#000000] text-sm font-bold text-[#1f1f1f] dark:text-white flex items-center justify-center gap-4">
